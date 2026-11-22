@@ -1,11 +1,9 @@
 name: NexusAI CI
-
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-
+    branches: [main, master]
 jobs:
   dotnet:
     runs-on: ubuntu-latest
@@ -14,11 +12,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Restore
-        run: dotnet restore src/NexusAI.Api/NexusAI.Api.csproj
-      - name: Build
-        run: dotnet build src/NexusAI.Api/NexusAI.Api.csproj --no-restore --configuration Release
-
+      - run: dotnet restore src/NexusAI.Api/NexusAI.Api.csproj
+      - run: dotnet build src/NexusAI.Api/NexusAI.Api.csproj --no-restore --configuration Release
   python:
     runs-on: ubuntu-latest
     defaults:
@@ -29,7 +24,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Syntax check
-        run: python -m compileall -q .
+      - run: pip install -r requirements.txt pytest
+      - run: python -m compileall -q .
+      - run: pytest -q
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
