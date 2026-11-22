@@ -88,7 +88,7 @@ async def analyze(request: AnalyzeRequest):
     raw = await ollama_generate(prompt)
     try:
         # Bazı modeller JSON etrafına açıklama ekleyebildiği için nesne sınırını ayıklıyoruz.
-        match = re.search(r"\\{.*\\}", raw, re.DOTALL)
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
         data = json.loads(match.group(0) if match else raw)
         priority = str(data.get("priority", "orta")).lower()
         if priority not in {"düşük", "orta", "yüksek"}:
@@ -117,7 +117,7 @@ async def add_knowledge(request: KnowledgeRequest):
 
 
 def split_into_chunks(text: str, size: int = 900, overlap: int = 120) -> list[str]:
-    text = re.sub(r"\\s+", " ", text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return []
     chunks = []
@@ -134,10 +134,10 @@ def split_into_chunks(text: str, size: int = 900, overlap: int = 120) -> list[st
 def rank_chunks(question: str, documents: list[tuple[str, str, str]]) -> list[tuple[str, str]]:
     # İlk sürümde Türkçe kelime örtüşmesi kullanılır; embedding tabanlı sıralama sonraki aşamada eklenebilir.
     stop_words = {"ve", "ile", "bir", "bu", "şu", "için", "nasıl", "nedir", "mi", "mı"}
-    terms = {w.lower() for w in re.findall(r"[\\wçğıöşüÇĞİÖŞÜ]+", question) if len(w) > 2} - stop_words
+    terms = {w.lower() for w in re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", question) if len(w) > 2} - stop_words
     ranked = []
     for title, chunk, _ in documents:
-        words = set(w.lower() for w in re.findall(r"[\\wçğıöşüÇĞİÖŞÜ]+", chunk))
+        words = set(w.lower() for w in re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", chunk))
         score = len(terms & words)
         if score:
             ranked.append((score, title, chunk))
@@ -158,11 +158,11 @@ async def ask(request: AskRequest):
     selected = rank_chunks(request.question, documents)
     if not selected:
         return AskResponse(answer="Bilgi bankasında soruyla eşleşen bir içerik bulamadım. İlgili dokümanları ekleyebilirsiniz.", sources=[])
-    context = "\\n\\n".join(f"Kaynak: {title}\\nİçerik: {chunk}" for title, chunk in selected)
+    context = "\n\n".join(f"Kaynak: {title}\nİçerik: {chunk}" for title, chunk in selected)
     prompt = (
         "Yalnızca aşağıdaki kaynaklarda bulunan bilgilere dayanarak Türkçe yanıt ver. "
         "Kaynaklarda cevap yoksa bunu açıkça söyle. Bilgi uydurma.\n\n"
-        f"Kaynaklar:\\n{context}\\n\\nSoru: {request.question}"
+        f"Kaynaklar:\n{context}\n\nSoru: {request.question}"
     )
     answer = await ollama_generate(prompt)
     return AskResponse(answer=answer[:5000], sources=list(dict.fromkeys(title for title, _ in selected)))
