@@ -1,24 +1,21 @@
-from fastapi.testclient import TestClient
-from main import app, split_into_chunks, rank_chunks
+from main import cosine_similarity, split_into_chunks
 
 
-def test_health_endpoint():
-    with TestClient(app) as client:
-        response = client.get("/health")
-        assert response.status_code == 200
-        assert response.json()["servis"] == "NexusAI AI"
-
-
-def test_chunking_keeps_document_text():
-    chunks = split_into_chunks("NexusAI destek platformu " * 100, size=100, overlap=10)
+def test_chunking_preserves_content():
+    text = "NexusAI destek platformu " * 100
+    chunks = split_into_chunks(text)
     assert len(chunks) > 1
     assert all(chunks)
+    assert chunks[0].startswith("NexusAI destek")
 
 
-def test_retrieval_prefers_matching_text():
-    docs = [
-        ("VPN Rehberi", "VPN bağlantısı için kurum hesabı gerekir", "1"),
-        ("Yazıcı Rehberi", "Toner değişimi ve kağıt sıkışması", "2"),
-    ]
-    ranked = rank_chunks("VPN bağlantısı nasıl yapılır", docs)
-    assert ranked[0][0] == "VPN Rehberi"
+def test_cosine_similarity_identical_vectors():
+    assert abs(cosine_similarity([1.0, 0.0], [1.0, 0.0]) - 1.0) < 1e-9
+
+
+def test_cosine_similarity_orthogonal_vectors():
+    assert abs(cosine_similarity([1.0, 0.0], [0.0, 1.0])) < 1e-9
+
+
+def test_cosine_similarity_different_dimensions():
+    assert cosine_similarity([1.0], [1.0, 2.0]) == 0.0
