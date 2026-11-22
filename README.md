@@ -1,85 +1,82 @@
 # NexusAI – Akıllı Destek ve Talep Yönetim Platformu
 
-NexusAI, kurumsal destek taleplerini yönetmek, LLM ile sınıflandırmak ve kurum içi bilgi bankasından RAG tabanlı yanıt önerileri üretmek için geliştirilen çok servisli bir uygulamadır.
+NexusAI; kurumsal destek taleplerini yönetmek, yerel LLM ile sınıflandırmak ve bilgi bankasından RAG tabanlı yanıt önerileri üretmek için geliştirilen çok servisli bir uygulamadır.
 
 ## Teknoloji yığını
 
 - **Backend:** C#, .NET 8, ASP.NET Core Web API, EF Core
 - **Mimari:** N-Tier / katmanlı mimari, Domain ve Infrastructure ayrımı
+- **Frontend:** React, Vite, Nginx
 - **AI:** Python, FastAPI, Pydantic, Uvicorn
-- **LLM:** Ollama (yerel model); vLLM uyumlu servis entegrasyonu sonraki genişletme noktasıdır
-- **RAG:** doküman parçalama (chunking), anahtar kelime tabanlı ilk retrieval, kaynaklı yanıt üretimi
-- **Veri:** PostgreSQL, Redis
-- **Dağıtım:** Docker, Docker Compose, Nginx yapılandırması
-- **Kalite:** Swagger / OpenAPI, istek doğrulama, sağlık kontrolü
+- **LLM:** Ollama, yerel model çalıştırma
+- **RAG:** chunking, embeddings, cosine similarity, semantic retrieval, kaynaklı yanıt üretimi
+- **Veri:** PostgreSQL, Redis; pgvector tabanlı PostgreSQL imajı
+- **Dağıtım:** Docker, Docker Compose, Nginx
+- **Kalite:** Swagger / OpenAPI, sağlık kontrolü, GitHub Actions CI, pytest
 
 ## Özellikler
 
 - Talep oluşturma, sayfalı listeleme, detay görüntüleme ve durum güncelleme
 - Ollama üzerinden talep kategorisi, önceliği ve yanıt önerisi
 - Bilgi dokümanı ekleme ve listeleme
-- Redis üzerinde doküman saklama, chunking ve ilgili parçaları seçerek RAG yanıtı oluşturma
-- PostgreSQL üzerinde taleplerin ve doküman kayıtlarının kalıcı saklanması
-- Redis ve PostgreSQL sağlık kontrolü
+- Dokümanları parçalara ayırma ve embedding vektörleri üretme
+- Cosine similarity ile anlamsal arama ve kaynaklı RAG yanıtı
+- PostgreSQL üzerinde taleplerin ve doküman metadata bilgilerinin kalıcı saklanması
+- Redis üzerinde doküman parçaları ve embedding vektörleri
+- React yönetim ekranı ve Nginx reverse proxy
 
 ## Mimari
 
 ```text
-İstemci -> ASP.NET Core API -> PostgreSQL
+React UI -> Nginx -> ASP.NET Core API -> PostgreSQL
                          |-> Redis
-                         |-> Python FastAPI -> Ollama
-Nginx (isteğe bağlı reverse proxy)
+                         |-> Python FastAPI -> Ollama (LLM + Embeddings)
 ```
-
-## Gereksinimler
-
-- Docker Desktop veya Docker Engine + Compose
-- İlk model indirme ve yanıt üretimi için internet bağlantısı
-- Model çalıştırmak için yeterli RAM/CPU veya desteklenen GPU
 
 ## Çalıştırma
 
-Depo kök dizininde:
+Docker Desktop / Docker Engine ve Compose v2 gereklidir.
 
 ```bash
 docker compose up --build -d
 docker compose exec ollama ollama pull llama3.2:3b
+docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-Servis adresleri:
+Model indirmeleri tamamlandıktan sonra:
+
+- Web arayüzü: http://localhost:3000
 - API Swagger: http://localhost:8080/swagger
 - API sağlık: http://localhost:8080/health
 - AI servis sağlık: http://localhost:8000/health
 - Ollama: http://localhost:11434
 
-İlk model indirmesi tamamlandıktan sonra API üzerinden talep oluşturabilirsiniz.
+Detaylı kurulum ve örnek istekler için [Yerel Kurulum](docs/LOCAL-SETUP.md), mimari kararlar için [Mimari](docs/ARCHITECTURE.md) dokümanına bakın.
 
-## Örnek istekler
+## RAG akışı
 
-Talep oluşturma:
+1. Doküman PostgreSQL'e metadata olarak kaydedilir.
+2. AI servisi içeriği yaklaşık 900 karakterlik ve 120 karakter örtüşmeli parçalara böler.
+3. Her parça `nomic-embed-text` ile vektörleştirilir ve Redis'e yazılır.
+4. Soru vektörü çıkarılır, cosine similarity ile en yakın beş parça seçilir.
+5. Seçilen parçalar kaynak başlıklarıyla LLM'e gönderilir.
 
-```bash
-curl -X POST http://localhost:8080/api/tickets -H "Content-Type: application/json" -d '{"title":"VPN bağlantı sorunu","description":"Ofis dışından VPN bağlantısı kuramıyorum."}'
-```
-
-Bilgi dokümanı ekleme:
-
-```bash
-curl -X POST http://localhost:8080/api/knowledge -H "Content-Type: application/json" -d '{"title":"VPN Kullanım Rehberi","content":"VPN bağlantısı için önce kurum hesabınızla oturum açın. İstemciyi başlatıp sunucu adresini girin ve çok faktörlü doğrulamayı tamamlayın."}'
-```
-
-Bilgi bankasına soru sorma:
+## Testler
 
 ```bash
-curl -X POST http://localhost:8080/api/assistant/ask -H "Content-Type: application/json" -d '{"question":"VPN bağlantısı nasıl kurulur?"}'
+cd ai-service
+pip install -r requirements.txt pytest
+pytest -q
 ```
 
-## Önemli geliştirme notları
+GitHub Actions, .NET derlemesini, Python testlerini ve React üretim derlemesini kontrol eder.
 
-Bu depo çalışan bir geliştirme başlangıç sürümüdür; henüz üretim ortamına hazır bir ürün olarak değerlendirilmemelidir. İlk RAG retrieval yöntemi kelime örtüşmesine dayanır; embedding tabanlı vektör arama, pgvector indeksleri, JWT/rol bazlı yetkilendirme, tenant izolasyonu, dosya yükleme ve kapsamlı otomatik testler sonraki geliştirme adımlarıdır. Fine-tuning ve 4-bit/8-bit quantization, model eğitim/servisleme süreçleri için dokümante edilen genişletme başlıklarıdır; mevcut compose akışı bunları otomatik uygulamaz.
+## Kapsam ve canlıya geçiş notları
 
-Geliştirme ortamındaki PostgreSQL parolası örnek amaçlıdır. Canlı ortamda secret yönetimi kullanılmalıdır.
+Bu depo çalışan bir geliştirme/demo temelidir; üretim ortamına hazır olduğu iddia edilmemektedir. Redis anahtarlarının toplu taranması büyük veri hacimleri için uygun değildir. Üretim öncesinde JWT/OIDC ve rol bazlı yetkilendirme, tenant izolasyonu, dosya yükleme/indeksleme kuyruğu, doküman silme ve yeniden indeksleme, pgvector veya Redis Vector Search indeksleri, migration tabanlı şema yönetimi, secret manager, rate limiting, audit log, izleme ve yedekleme eklenmelidir.
+
+Fine-tuning, 4-bit/8-bit quantization ve vLLM olası model eğitimi/servisleme seçenekleridir; mevcut compose akışı otomatik fine-tuning gerçekleştirmez. Ollama modelleri kendi paket quantization biçimleriyle sunulur. Geliştirme parolaları yalnızca yerel kullanım içindir.
 
 ## Anahtar kelimeler
 
-ASP.NET Core, .NET 8, C#, Web API, EF Core, N-Tier Architecture, Clean Architecture, Python, FastAPI, AI Engineering, Artificial Intelligence, Machine Learning, NLP, LLM, Large Language Models, RAG, Retrieval-Augmented Generation, Prompt Engineering, Embeddings, Chunking, Vector Search, Semantic Search, Fine-Tuning, Quantization, 4-bit Quantization, 8-bit Quantization, Ollama, vLLM, OpenAI API, PostgreSQL, pgvector, Redis, Docker, Docker Compose, Nginx, Uvicorn, REST API, Swagger, OpenAPI, CI/CD, GitHub Actions, On-Premise AI, Local LLM, Enterprise AI, Intelligent Support, Ticket Management, Türkçe doğal dil işleme.
+ASP.NET Core, .NET 8, C#, Web API, EF Core, N-Tier Architecture, Clean Architecture, React, Python, FastAPI, AI Engineering, Artificial Intelligence, Machine Learning, NLP, LLM, Large Language Models, RAG, Retrieval-Augmented Generation, Prompt Engineering, Embeddings, Chunking, Vector Search, Semantic Search, Fine-Tuning, Quantization, 4-bit Quantization, 8-bit Quantization, Ollama, vLLM, PostgreSQL, pgvector, Redis, Docker, Docker Compose, Nginx, Uvicorn, REST API, Swagger, OpenAPI, CI/CD, GitHub Actions, On-Premise AI, Local LLM, Enterprise AI, Ticket Management.
