@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/__pycache__/
+.venv/
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.user
+*.suo
