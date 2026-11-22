@@ -14,16 +14,10 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 builder.Services.AddHttpClient<AiServiceClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["AiService:BaseUrl"] ?? "http://localhost:8000");
-    client.Timeout = TimeSpan.FromSeconds(110);
+    client.Timeout = TimeSpan.FromSeconds(120);
 });
 
 var app = builder.Build();
-// İlk kurulumda tabloları oluşturur. Canlı ortamda EF Core migration kullanılmalıdır.
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<NexusAiDbContext>();
-    await db.Database.EnsureCreatedAsync();
-}
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
