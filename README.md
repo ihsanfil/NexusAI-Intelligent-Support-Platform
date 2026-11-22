@@ -39,11 +39,9 @@ Docker Desktop / Docker Engine ve Compose v2 gereklidir.
 
 ```bash
 docker compose up --build -d
-docker compose exec ollama ollama pull llama3.2:3b
-docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-Model indirmeleri tamamlandıktan sonra:
+Compose ilk açılışta LLM ve embedding modellerini otomatik indirir. İndirme süresi bağlantı hızına ve modele göre değişir. Modeller hazır olduğunda:
 
 - Web arayüzü: http://localhost:3000
 - API Swagger: http://localhost:8080/swagger
