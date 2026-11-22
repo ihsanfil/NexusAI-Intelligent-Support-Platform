@@ -7,9 +7,16 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=nexusai;Username=nexus;Password=nexus_dev_password
+      ConnectionStrings__Redis: redis:6379
       AiService__BaseUrl: http://ai-service:8000
     depends_on:
-      - ai-service
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ai-service:
+        condition: service_started
 
   ai-service:
     build: ./ai-service
@@ -18,8 +25,31 @@ services:
     environment:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: llama3.2:3b
+      REDIS_URL: redis://redis:6379/1
     depends_on:
       - ollama
+      - redis
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: nexusai
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexusai"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
   ollama:
     image: ollama/ollama:latest
@@ -29,4 +59,5 @@ services:
       - ollama-data:/root/.ollama
 
 volumes:
+  postgres-data:
   ollama-data:
