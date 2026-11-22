@@ -18,6 +18,13 @@ builder.Services.AddHttpClient<AiServiceClient>(client =>
 });
 
 var app = builder.Build();
+
+// Geliştirme ortamında ilk çalıştırmada tabloları hazırlar. Canlı ortamda migration tercih edilmelidir.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<NexusAiDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
