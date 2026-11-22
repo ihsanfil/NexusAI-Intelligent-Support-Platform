@@ -17,7 +17,7 @@ services:
       redis:
         condition: service_healthy
       ai-service:
-        condition: service_started
+        condition: service_healthy
 
   ai-service:
     build: ./ai-service
@@ -29,8 +29,25 @@ services:
       EMBED_MODEL: nomic-embed-text
       REDIS_URL: redis://redis:6379/1
     depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama-init:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull llama3.2:3b && ollama pull nomic-embed-text"]
+    depends_on:
       - ollama
-      - redis
+    restart: "no"
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -70,7 +87,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - api
+      api:
+        condition: service_started
 
 volumes:
   postgres-data:
