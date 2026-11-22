@@ -1,79 +1,85 @@
 # NexusAI – Akıllı Destek ve Talep Yönetim Platformu
 
-NexusAI, kurumsal destek taleplerini tek noktadan yönetmek; talepleri yapay zekâ yardımıyla sınıflandırmak, önceliklendirmek ve kurum içi dokümanlardan kaynaklı yanıt önerileri üretmek amacıyla geliştirilen bir platformdur.
-
-Ana uygulama C# ve ASP.NET Core Web API üzerinde çalışır. LLM, embedding ve RAG işlemleri Python ve FastAPI ile ayrı bir servis olarak ele alınır. Böylece iş kuralları .NET tarafında, model ve doküman işleme süreçleri AI servisinde tutulur.
-
-## Temel özellikler
-
-- Destek talebi oluşturma, görüntüleme ve durum takibi
-- LLM ile talep kategorisi ve öncelik önerisi
-- Doküman yükleme, metin çıkarma ve parçalara ayırma (chunking)
-- Embedding üretimi ve anlamsal arama (semantic search)
-- RAG (Retrieval-Augmented Generation) ile kaynaklı yanıt üretimi
-- Yerel / kurum içi LLM çalıştırma: Ollama ve vLLM
-- 4-bit ve 8-bit quantization için model servisleme seçenekleri
-- ASP.NET Core ile FastAPI arasında REST API entegrasyonu
-- PostgreSQL ve pgvector ile kalıcı veri ve vektör arama
-- Redis ile önbellekleme
-- Docker Compose ve Nginx ile dağıtım altyapısı
+NexusAI, kurumsal destek taleplerini yönetmek, LLM ile sınıflandırmak ve kurum içi bilgi bankasından RAG tabanlı yanıt önerileri üretmek için geliştirilen çok servisli bir uygulamadır.
 
 ## Teknoloji yığını
 
-| Alan | Teknolojiler |
-|---|---|
-| Backend | C#, .NET 8, ASP.NET Core Web API |
-| Mimari | N-Tier Architecture, katmanlı mimari, DTO, servis katmanı |
-| AI servisi | Python, FastAPI, Pydantic, Uvicorn |
-| LLM | Ollama, vLLM, OpenAI uyumlu API |
-| RAG | Embeddings, chunking, prompt engineering, semantic search, vector search |
-| Veri | PostgreSQL, pgvector, Redis |
-| Dağıtım | Docker, Docker Compose, Nginx |
-| API dokümantasyonu | Swagger, OpenAPI |
-| Test ve otomasyon | xUnit, pytest, CI/CD, GitHub Actions |
+- **Backend:** C#, .NET 8, ASP.NET Core Web API, EF Core
+- **Mimari:** N-Tier / katmanlı mimari, Domain ve Infrastructure ayrımı
+- **AI:** Python, FastAPI, Pydantic, Uvicorn
+- **LLM:** Ollama (yerel model); vLLM uyumlu servis entegrasyonu sonraki genişletme noktasıdır
+- **RAG:** doküman parçalama (chunking), anahtar kelime tabanlı ilk retrieval, kaynaklı yanıt üretimi
+- **Veri:** PostgreSQL, Redis
+- **Dağıtım:** Docker, Docker Compose, Nginx yapılandırması
+- **Kalite:** Swagger / OpenAPI, istek doğrulama, sağlık kontrolü
 
-## Genel mimari
+## Özellikler
+
+- Talep oluşturma, sayfalı listeleme, detay görüntüleme ve durum güncelleme
+- Ollama üzerinden talep kategorisi, önceliği ve yanıt önerisi
+- Bilgi dokümanı ekleme ve listeleme
+- Redis üzerinde doküman saklama, chunking ve ilgili parçaları seçerek RAG yanıtı oluşturma
+- PostgreSQL üzerinde taleplerin ve doküman kayıtlarının kalıcı saklanması
+- Redis ve PostgreSQL sağlık kontrolü
+
+## Mimari
 
 ```text
-İstemci
-  |
-Nginx (Reverse Proxy)
-  |
-ASP.NET Core Web API
-  |                    |
-PostgreSQL             Redis
-  |
-Python FastAPI AI Servisi
-  |
-Embedding / RAG / LLM
-  |
-Ollama veya vLLM
+İstemci -> ASP.NET Core API -> PostgreSQL
+                         |-> Redis
+                         |-> Python FastAPI -> Ollama
+Nginx (isteğe bağlı reverse proxy)
 ```
 
-ASP.NET Core tarafı talep yönetimi, doğrulama, yetkilendirme ve uygulama kurallarını yürütür. Python servisi doküman işleme, embedding, retrieval ve model çağrılarını üstlenir.
+## Gereksinimler
 
-## Planlanan depo düzeni
+- Docker Desktop veya Docker Engine + Compose
+- İlk model indirme ve yanıt üretimi için internet bağlantısı
+- Model çalıştırmak için yeterli RAM/CPU veya desteklenen GPU
 
-- `src/NexusAI.Api` – HTTP uç noktaları ve API yapılandırması
-- `src/NexusAI.Application` – uygulama servisleri ve iş akışları
-- `src/NexusAI.Domain` – varlıklar ve iş kuralları
-- `src/NexusAI.Infrastructure` – veri erişimi ve dış servis bağlantıları
-- `ai-service` – FastAPI tabanlı AI ve RAG servisi
-- `deploy` – Docker ve Nginx yapılandırmaları
-- `docs` – mimari ve geliştirme dokümanları
+## Çalıştırma
 
-## Geliştirme ve çalıştırma
+Depo kök dizininde:
 
-Proje aktif geliştirme aşamasındadır. Henüz tamamlanmamış veya test edilmemiş bileşenler tamamlanmış gibi gösterilmez. Çalıştırma adımları ve gerekli ortam değişkenleri, ilgili servisler eklendikçe bu dosyada güncellenecektir.
+```bash
+docker compose up --build -d
+docker compose exec ollama ollama pull llama3.2:3b
+```
 
-## Güvenlik
+Servis adresleri:
+- API Swagger: http://localhost:8080/swagger
+- API sağlık: http://localhost:8080/health
+- AI servis sağlık: http://localhost:8000/health
+- Ollama: http://localhost:11434
 
-Gerçek ortamda kimlik doğrulama, rol bazlı yetkilendirme, tenant bazlı veri ayrımı, istek sınırlandırma, gizli anahtar yönetimi ve loglarda hassas veri maskeleme uygulanmalıdır. Depoda gerçek parola veya API anahtarı tutulmamalıdır.
+İlk model indirmesi tamamlandıktan sonra API üzerinden talep oluşturabilirsiniz.
+
+## Örnek istekler
+
+Talep oluşturma:
+
+```bash
+curl -X POST http://localhost:8080/api/tickets -H "Content-Type: application/json" -d '{"title":"VPN bağlantı sorunu","description":"Ofis dışından VPN bağlantısı kuramıyorum."}'
+```
+
+Bilgi dokümanı ekleme:
+
+```bash
+curl -X POST http://localhost:8080/api/knowledge -H "Content-Type: application/json" -d '{"title":"VPN Kullanım Rehberi","content":"VPN bağlantısı için önce kurum hesabınızla oturum açın. İstemciyi başlatıp sunucu adresini girin ve çok faktörlü doğrulamayı tamamlayın."}'
+```
+
+Bilgi bankasına soru sorma:
+
+```bash
+curl -X POST http://localhost:8080/api/assistant/ask -H "Content-Type: application/json" -d '{"question":"VPN bağlantısı nasıl kurulur?"}'
+```
+
+## Önemli geliştirme notları
+
+Bu depo çalışan bir geliştirme başlangıç sürümüdür; henüz üretim ortamına hazır bir ürün olarak değerlendirilmemelidir. İlk RAG retrieval yöntemi kelime örtüşmesine dayanır; embedding tabanlı vektör arama, pgvector indeksleri, JWT/rol bazlı yetkilendirme, tenant izolasyonu, dosya yükleme ve kapsamlı otomatik testler sonraki geliştirme adımlarıdır. Fine-tuning ve 4-bit/8-bit quantization, model eğitim/servisleme süreçleri için dokümante edilen genişletme başlıklarıdır; mevcut compose akışı bunları otomatik uygulamaz.
+
+Geliştirme ortamındaki PostgreSQL parolası örnek amaçlıdır. Canlı ortamda secret yönetimi kullanılmalıdır.
 
 ## Anahtar kelimeler
 
-ASP.NET Core, .NET 8, C#, Web API, Python, FastAPI, AI Engineering, Artificial Intelligence, Machine Learning, NLP, LLM, Large Language Models, RAG, Retrieval-Augmented Generation, Prompt Engineering, Embeddings, Vector Database, pgvector, Vector Search, Semantic Search, Chunking, Fine-Tuning, Quantization, 4-bit Quantization, 8-bit Quantization, Ollama, vLLM, OpenAI API, PostgreSQL, Redis, Docker, Docker Compose, Nginx, Uvicorn, REST API, N-Tier Architecture, Clean Architecture, Swagger, OpenAPI, CI/CD, GitHub Actions, On-Premise AI, Local LLM, Production Deployment, Enterprise AI, Intelligent Support, Ticket Management, Türkçe doğal dil işleme.
-
-## Lisans
-
-Lisans koşulları proje yayın öncesinde netleştirilecektir.
+ASP.NET Core, .NET 8, C#, Web API, EF Core, N-Tier Architecture, Clean Architecture, Python, FastAPI, AI Engineering, Artificial Intelligence, Machine Learning, NLP, LLM, Large Language Models, RAG, Retrieval-Augmented Generation, Prompt Engineering, Embeddings, Chunking, Vector Search, Semantic Search, Fine-Tuning, Quantization, 4-bit Quantization, 8-bit Quantization, Ollama, vLLM, OpenAI API, PostgreSQL, pgvector, Redis, Docker, Docker Compose, Nginx, Uvicorn, REST API, Swagger, OpenAPI, CI/CD, GitHub Actions, On-Premise AI, Local LLM, Enterprise AI, Intelligent Support, Ticket Management, Türkçe doğal dil işleme.
