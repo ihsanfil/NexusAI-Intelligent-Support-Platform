@@ -12,11 +12,9 @@ Depo kök dizininde:
 
 ```bash
 docker compose up --build -d
-docker compose exec ollama ollama pull llama3.2:3b
-docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-Model indirmeleri tamamlanınca:
+`ollama-init` servisi ilk açılışta iki modeli otomatik indirir. İndirme tamamlanınca:
 - Web arayüzü: http://localhost:3000
 - Swagger: http://localhost:8080/swagger
 - API health: http://localhost:8080/health
